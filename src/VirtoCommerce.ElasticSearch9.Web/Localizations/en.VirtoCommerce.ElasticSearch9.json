@@ -1,0 +1,24 @@
+{
+  "ElasticSearch9": {
+    "blades": {
+      "hello-world": {
+        "title": "Hello world blade"
+      }
+    }
+  },
+  "permissions": {
+    "elastic-search-9:access": "Open ElasticSearch9 menu",
+    "elastic-search-9:create": "Create ElasticSearch9 related data",
+    "elastic-search-9:read": "View ElasticSearch9 related data",
+    "elastic-search-9:update": "Update ElasticSearch9 related data",
+    "elastic-search-9:delete": "Delete ElasticSearch9 related data"
+  },
+  "settings": {
+    "ElasticSearch9": {
+      "Enabled": {
+        "title": "ElasticSearch9 Enabled",
+        "description": "ElasticSearch9 Enabled setting"
+      }
+    }
+  }
+}
