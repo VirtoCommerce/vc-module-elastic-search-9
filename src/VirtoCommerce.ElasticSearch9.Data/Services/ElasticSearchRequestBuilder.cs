@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Elastic.Clients.Elasticsearch;
@@ -41,24 +42,26 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
 
     public virtual ElasticSearchRequest BuildRequest(VirtoCommerceSearchRequest request, string indexName, string documentType, IDictionary<PropertyName, IProperty> availableFields)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = new ElasticSearchRequest(indexName)
         {
             Query = GetQuery(request),
-            PostFilter = _searchFiltersBuilder.GetFilterQuery(request?.Filter, availableFields),
-            Aggregations = _searchAggregationsBuilder.GetAggregations(request?.Aggregations, availableFields),
-            Sort = GetSorting(request?.Sorting),
-            From = request?.Skip,
-            Size = request?.Take,
-            TrackScores = request?.Sorting?.Any(x => IsScoreField(x)),
-            Source = GetSourceFilters(request?.IncludeFields),
+            PostFilter = _searchFiltersBuilder.GetFilterQuery(request.Filter, availableFields),
+            Aggregations = _searchAggregationsBuilder.GetAggregations(request.Aggregations, availableFields),
+            Sort = GetSorting(request.Sorting),
+            From = request.Skip,
+            Size = request.Take,
+            TrackScores = request.Sorting?.Any(x => IsScoreField(x)),
+            Source = GetSourceFilters(request.IncludeFields),
             TrackTotalHits = new TrackHits(true),
             // Apply MinScore for Search by Keywords Only
-            MinScore = !string.IsNullOrEmpty(request?.SearchKeywords) ? _settingsManager.GetMinScore(documentType, _logger) : null,
+            MinScore = !string.IsNullOrEmpty(request.SearchKeywords) ? _settingsManager.GetMinScore(documentType, _logger) : null,
         };
 
         // use Knn search and rank feature
         if (_settingsManager.GetSemanticSearchType() == ModuleConstants.ThirdPartyModel
-            && !string.IsNullOrEmpty(request?.SearchKeywords))
+            && !string.IsNullOrEmpty(request.SearchKeywords))
         {
             var numCandidates = request.Take * 2;
             numCandidates = numCandidates <= NearestNeighborMaxCandidates ? numCandidates : NearestNeighborMaxCandidates;

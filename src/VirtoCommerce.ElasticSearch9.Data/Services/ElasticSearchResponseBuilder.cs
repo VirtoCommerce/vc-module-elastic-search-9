@@ -82,7 +82,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         return result;
     }
 
-    private static IList<AggregationResponse> GetAggregations(AggregateDictionary searchResponseAggregations, VirtoCommerceSearchRequest request)
+    private static List<AggregationResponse> GetAggregations(AggregateDictionary searchResponseAggregations, VirtoCommerceSearchRequest request)
     {
         var result = new List<AggregationResponse>();
 

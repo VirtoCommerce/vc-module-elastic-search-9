@@ -32,6 +32,13 @@ public static class ModuleConstants
     public const string TokensPropertyName = $"{ModelPropertyName}.{TokensFieldName}";
     public const string VectorPropertyName = $"{ModelPropertyName}.{VectorFieldName}";
 
+    public const int DefaultIndexTotalFieldsLimit = 1000;
+    public const int DefaultMinGram = 1;
+    public const int DefaultMaxGram = 20;
+    public const int DefaultSemanticVectorModelDimensions = 384;
+    public const decimal DefaultMinScore = 0.1M;
+    public const decimal DefaultBoost = 1.0M;
+
     public static class Settings
     {
         public static class General
@@ -43,7 +50,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.IndexTotalFieldsLimit",
                 GroupName = "Search|ElasticSearch9|General",
                 ValueType = SettingValueType.Integer,
-                DefaultValue = 1000,
+                DefaultValue = DefaultIndexTotalFieldsLimit,
             };
 
             public static SettingDescriptor TokenFilter { get; } = new()
@@ -59,7 +66,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.NGramTokenFilter.MinGram",
                 GroupName = "Search|ElasticSearch9|General",
                 ValueType = SettingValueType.Integer,
-                DefaultValue = 1,
+                DefaultValue = DefaultMinGram,
             };
 
             public static SettingDescriptor MaxGram { get; } = new()
@@ -67,7 +74,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.NGramTokenFilter.MaxGram",
                 GroupName = "Search|ElasticSearch9|General",
                 ValueType = SettingValueType.Integer,
-                DefaultValue = 20,
+                DefaultValue = DefaultMaxGram,
             };
 
             public static SettingDescriptor MinScore { get; } = new()
@@ -75,7 +82,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.MinScore",
                 GroupName = "Search|ElasticSearch9|General",
                 ValueType = SettingValueType.Decimal,
-                DefaultValue = 0.1,
+                DefaultValue = DefaultMinScore,
             };
 
             public static SettingDescriptor MinScorePerDocumentType { get; } = new SettingDescriptor
@@ -109,7 +116,7 @@ public static class ModuleConstants
                 ValueType = SettingValueType.ShortText,
                 GroupName = "Search|ElasticSearch9|Semantic",
                 DefaultValue = NoModel,
-                AllowedValues = new object[] { NoModel, ElserModel, ThirdPartyModel },
+                AllowedValues = [NoModel, ElserModel, ThirdPartyModel],
             };
 
             public static SettingDescriptor SemanticModelId { get; } = new()
@@ -133,7 +140,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.SemanticVectorModelDimensions",
                 GroupName = "Search|ElasticSearch9|Semantic",
                 ValueType = SettingValueType.PositiveInteger,
-                DefaultValue = 384,
+                DefaultValue = DefaultSemanticVectorModelDimensions,
             };
 
             public static SettingDescriptor SemanticBoost { get; } = new()
@@ -141,7 +148,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.SemanticBoost",
                 GroupName = "Search|ElasticSearch9|Semantic",
                 ValueType = SettingValueType.Decimal,
-                DefaultValue = 1.0M,
+                DefaultValue = DefaultBoost,
             };
 
             public static SettingDescriptor KeywordBoost { get; } = new()
@@ -149,7 +156,7 @@ public static class ModuleConstants
                 Name = "VirtoCommerce.Search.ElasticSearch9.KeywordBoost",
                 GroupName = "Search|ElasticSearch9|Semantic",
                 ValueType = SettingValueType.Decimal,
-                DefaultValue = 1.0M,
+                DefaultValue = DefaultBoost,
             };
 
             public static IEnumerable<SettingDescriptor> AllGeneralSettings

@@ -530,10 +530,9 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         {
             var fieldName = field.Name.ToElasticFieldName();
 
-            if (result.ContainsKey(fieldName))
+            if (result.TryGetValue(fieldName, out var currentValue))
             {
                 var newValues = new List<object>();
-                var currentValue = result[fieldName];
 
                 if (currentValue is object[] currentValues)
                 {
