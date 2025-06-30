@@ -326,7 +326,7 @@ The following links provide more information about source filtering: [Saving dis
 To facilitate debugging and troubleshooting within the Elasticsearch 9 module for Virto Commerce, you can enable debug mode. This mode configures Elasticsearch to provide detailed request/response logging and enhanced error information.
 
 ### Enable debug mode in Elasticsearch options
-Set the ElasticSearch8Options::EnableDebugMode property to true in your application configuration.
+Set the ElasticSearch9Options::EnableDebugMode property to true in your application configuration.
 This will:
 1. Disable direct streaming of requests/responses (DisableDirectStreaming()),
 1. Allowing raw JSON payloads to be captured. Format JSON output for improved readability (PrettyJson()).
@@ -355,7 +355,7 @@ Example (appsettings.Development.json):
   "Serilog": {
     "MinimumLevel": {
       "Override": {
-          "VirtoCommerce.ElasticSearch8.Data.Services.ElasticSearch9Provider": "Debug"
+          "VirtoCommerce.ElasticSearch9.Data.Services.ElasticSearch9Provider": "Debug"
       }
     },
   }
@@ -365,7 +365,7 @@ Example (appsettings.Development.json):
 Virto Cloud Environment Variable:
 
 ```yml
-Serilog__MinimumLevel__Override__VirtoCommerce__ElasticSearch8__Data__Services__ElasticSearch9Provider: "Debug"
+Serilog__MinimumLevel__Override__VirtoCommerce__ElasticSearch9__Data__Services__ElasticSearch9Provider: "Debug"
 ```
 
 ### Warning
@@ -375,7 +375,7 @@ Debug mode increases log verbosity and may expose sensitive data. Use it only du
 
 * [Elastic Search 9 module user documentation](https://docs.virtocommerce.org/platform/user-guide/elastic-search-8/overview/)
 * [Elastic Search 9 module developer documentation](https://docs.virtocommerce.org/platform/developer-guide/Fundamentals/Indexed-Search/integration/elastic-search-8/)
-* [REST API](https://virtostart-demo-admin.govirto.com/docs/index.html?urls.primaryName=VirtoCommerce.ElasticSearch8)
+* [REST API](https://virtostart-demo-admin.govirto.com/docs/index.html?urls.primaryName=VirtoCommerce.ElasticSearch9)
 * [Search providers configuration](https://docs.virtocommerce.org/platform/developer-guide/Configuration-Reference/appsettingsjson/#search)
 * [View on GitHub](https://github.com/VirtoCommerce/vc-module-elastic-search-9)
 
