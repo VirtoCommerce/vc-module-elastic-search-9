@@ -22,8 +22,9 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         {
             result.TotalCount = response.Total;
             result.Documents = response.Hits.Select(ToSearchDocument).ToArray();
-            result.Aggregations = GetAggregations(response.Aggregations, request);
         }
+
+        result.Aggregations = GetAggregations(response.Aggregations, request);
 
         return result;
     }
@@ -196,6 +197,23 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         {
             var responseValueId = $"{aggregationResponse.Id}-{queryValueId}";
             AddAggregationValues(aggregationResponse, responseValueId, queryValueId, searchResponseAggregations);
+        }
+
+        TryAddAggregationStatistics(searchResponseAggregations, aggregationResponse);
+    }
+
+    private static void TryAddAggregationStatistics(AggregateDictionary searchResponseAggregations, AggregationResponse aggregationResponse)
+    {
+        var statsId = $"{aggregationResponse.Id}-stats";
+
+        if (searchResponseAggregations.GetValueOrDefault(statsId) is FilterAggregate filterAggregate &&
+            filterAggregate.Aggregations.GetValueOrDefault("stats") is StatsAggregate stats)
+        {
+            aggregationResponse.Statistics = new AggregationStatistics
+            {
+                Min = stats.Min,
+                Max = stats.Max,
+            };
         }
     }
 }
