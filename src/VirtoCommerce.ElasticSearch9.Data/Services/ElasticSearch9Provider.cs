@@ -338,12 +338,15 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             });
         }
 
-        result.Items.AddRange(bulkResponse.Items.Select(i => new IndexingResultItem
+        if (bulkResponse.Items != null)
         {
-            Id = i.Id,
-            Succeeded = i.IsValid,
-            ErrorMessage = i.Error?.Reason
-        }));
+            result.Items.AddRange(bulkResponse.Items.Select(i => new IndexingResultItem
+            {
+                Id = i.Id,
+                Succeeded = i.IsValid,
+                ErrorMessage = i.Error?.Reason
+            }));
+        }
 
         return result;
     }
