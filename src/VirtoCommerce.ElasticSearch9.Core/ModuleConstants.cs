@@ -34,7 +34,7 @@ public static class ModuleConstants
 
     public const int DefaultIndexTotalFieldsLimit = 1000;
     public const int DefaultMinGram = 1;
-    public const int DefaultMaxGram = 20;
+    public const int DefaultMaxGram = 50;
     public const int DefaultSemanticVectorModelDimensions = 384;
     public const decimal DefaultMinScore = 0.1M;
     public const decimal DefaultBoost = 1.0M;
