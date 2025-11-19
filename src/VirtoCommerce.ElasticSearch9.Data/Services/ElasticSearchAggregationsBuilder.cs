@@ -58,7 +58,7 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
     {
         return availableFields
             .Any(kvp =>
-                kvp.Key.Name.EqualsInvariant(fieldName) &&
+                kvp.Key.Name.EqualsIgnoreCase(fieldName) &&
                 kvp.Value is KeywordProperty keywordProperty &&
                 keywordProperty.Fields?.TryGetProperty("raw", out _) == true);
     }
@@ -79,7 +79,7 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
 
         if (!string.IsNullOrEmpty(field))
         {
-            termsAggregation = new TermsAggregation()
+            termsAggregation = new TermsAggregation
             {
                 Field = field,
                 Size = facetSize,
@@ -100,9 +100,9 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
         }
         else
         {
-            var filterAggregation = new FiltersAggregation()
+            var filterAggregation = new FiltersAggregation
             {
-                Filters = new Buckets<Query>(new[] { query })
+                Filters = new Buckets<Query>([query]),
             };
 
             if (termsAggregation != null)
@@ -112,8 +112,8 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
                     Filters = filterAggregation,
                     Aggregations = new Dictionary<string, Aggregation>
                     {
-                        { aggregationId, new Aggregation { Terms = termsAggregation } }
-                    }
+                        { aggregationId, new Aggregation { Terms = termsAggregation } },
+                    },
                 };
 
                 container.Add(aggregationId, filters);
@@ -143,18 +143,18 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
             var rangeFilter = new RangeFilter
             {
                 FieldName = fieldName,
-                Values = new[] { new RangeFilterValue { Lower = value.Lower, Upper = value.Upper, IncludeLower = value.IncludeLower, IncludeUpper = value.IncludeUpper } },
+                Values = [new RangeFilterValue { Lower = value.Lower, Upper = value.Upper, IncludeLower = value.IncludeLower, IncludeUpper = value.IncludeUpper }],
             };
             var query = _searchFiltersBuilder.GetFilterQuery(rangeFilter, availableFields);
 
             var mustQuery = new BoolQuery
             {
-                Must = new List<Query> { filter, query }
+                Must = new List<Query> { filter, query },
             };
 
             var buckets = new List<Query> { mustQuery }.ToArray();
 
-            var filtersAggregation = new FiltersAggregation()
+            var filtersAggregation = new FiltersAggregation
             {
                 Filters = new Buckets<Query>(buckets),
             };
@@ -165,12 +165,12 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
         // Add stats aggregation for the field
         var aggregationQuery = new BoolQuery
         {
-            Must = new List<Query> { filter }
+            Must = new List<Query> { filter },
         };
 
         var filterAggregation = new Aggregation
         {
-            Filter = aggregationQuery
+            Filter = aggregationQuery,
         };
 
         var statsAggregation = new StatsAggregation
@@ -180,7 +180,7 @@ public class ElasticSearchAggregationsBuilder : IElasticSearchAggregationsBuilde
 
         filterAggregation.Aggregations = new Dictionary<string, Aggregation>
             {
-                { "stats", statsAggregation }
+                { "stats", statsAggregation },
             };
 
         container.Add($"{aggregationId}-stats", filterAggregation);

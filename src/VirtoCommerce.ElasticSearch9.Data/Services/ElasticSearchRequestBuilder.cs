@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Search;
@@ -52,7 +53,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
             Sort = GetSorting(request.Sorting),
             From = request.Skip,
             Size = request.Take,
-            TrackScores = request.Sorting?.Any(x => IsScoreField(x)),
+            TrackScores = request?.Sorting?.Any(IsScoreField),
             Source = GetSourceFilters(request.IncludeFields),
             TrackTotalHits = new TrackHits(true),
             // Apply MinScore for Search by Keywords Only
@@ -87,6 +88,88 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
         return result;
     }
 
+    public ElasticSearchRequest BuildSuggestionRequest(SuggestionRequest request, string indexName, string documentType, IDictionary<PropertyName, IProperty> availableFields)
+    {
+        var fieldNames = request.Fields.Select(x => x.ToElasticFieldName()).ToArray();
+        var result = new ElasticSearchRequest(indexName)
+        {
+            Source = true,
+            SourceIncludes = fieldNames,
+        };
+
+        var completionFields = fieldNames.Select(x => GetCompletionProperty(x, availableFields)).Where(x => x.Completion != null).ToArray();
+        if (completionFields.Length == 0)
+        {
+            return result;
+        }
+
+        result.Suggest = new Suggester
+        {
+            Suggesters = completionFields.ToDictionary(x => GetSuggesterName(x.PropertyName),
+                x => new FieldSuggester
+                {
+                    Prefix = request.Query,
+                    Completion = new CompletionSuggester
+                    {
+                        Field = x.PropertyName,
+                        Size = request.Size,
+                        SkipDuplicates = true,
+                        Contexts = GetCompletionContexts(x.Completion, request.QueryContext),
+                    },
+                }),
+        };
+
+        // Filter contexts to avoid response deserialization issues
+        result.FilterPath = ["-**.options._ignored", "-**.options.contexts"];
+
+        return result;
+    }
+
+    protected static string GetSuggesterName(string fieldName)
+    {
+        return $"{fieldName.ToLowerInvariant()}_suggest";
+    }
+
+    protected static (string PropertyName, CompletionProperty Completion) GetCompletionProperty(string field, IDictionary<PropertyName, IProperty> availableFields)
+    {
+        var suggestionFieldName = field.ToSuggestionFieldName();
+        if (availableFields.TryGetValue(suggestionFieldName, out var property) && property is CompletionProperty completion)
+        {
+            return (suggestionFieldName, completion);
+        }
+
+        return default;
+    }
+
+    protected static IDictionary<Field, ICollection<CompletionContext>> GetCompletionContexts(CompletionProperty completion, IDictionary<string, object> queryContext)
+    {
+        if (!(completion.Contexts?.Count > 0) || !(queryContext?.Count > 0))
+        {
+            return null;
+        }
+
+        var contexts = new Dictionary<Field, ICollection<CompletionContext>>();
+
+        foreach (var context in completion.Contexts)
+        {
+            var name = context.Name.ToString();
+            if (!queryContext.TryGetValue(name, out var value))
+            {
+                continue;
+            }
+
+            if (value is not IEnumerable<object> values)
+            {
+                values = [value];
+            }
+
+            contexts[name] = values.Select(x => Convert.ToString(x, CultureInfo.InvariantCulture)).Where(x => x != null)
+                .Select(x => new CompletionContext(x)).ToArray();
+        }
+
+        return contexts;
+    }
+
     protected virtual Query GetQuery(VirtoCommerceSearchRequest request)
     {
         if (string.IsNullOrEmpty(request?.SearchKeywords))
@@ -110,7 +193,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
             var multiMatchQueryWrapper = new Query { MultiMatch = multiMatchQuery };
             var sparceVectorQueryWrapper = new Query { SparseVector = sparceVectorQuery };
 
-            var queries = new Query[] { sparceVectorQueryWrapper, multiMatchQueryWrapper };
+            var queries = new[] { sparceVectorQueryWrapper, multiMatchQueryWrapper };
             var boolQuery = new BoolQuery { Should = queries };
 
             result = new Query { Bool = boolQuery };
@@ -123,18 +206,18 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
         return result;
     }
 
-    private SparseVectorQuery GetSparseVectorQuery(VirtoCommerceSearchRequest request)
+    protected SparseVectorQuery GetSparseVectorQuery(VirtoCommerceSearchRequest request)
     {
         var sparseVectorQuery = new SparseVectorQuery(ModuleConstants.TokensPropertyName)
         {
             InferenceId = _settingsManager.GetModelId(),
-            Query = request.SearchKeywords
+            Query = request.SearchKeywords,
         };
 
         return sparseVectorQuery;
     }
 
-    private static MultiMatchQuery GetMultimatchKeywordSearchQuery(VirtoCommerceSearchRequest request)
+    protected static MultiMatchQuery GetMultimatchKeywordSearchQuery(VirtoCommerceSearchRequest request)
     {
         var keywords = request.SearchKeywords;
         var fields = request.SearchFields?.Select(x => x.ToElasticFieldName()).ToArray() ?? ["_all"];
@@ -144,7 +227,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
             Fields = fields,
             Query = keywords,
             Analyzer = "standard",
-            Operator = Operator.And
+            Operator = Operator.And,
         };
 
         if (request.IsFuzzySearch)
@@ -171,7 +254,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
                 GeoDistance = new GeoDistanceSort
                 {
                     Field = field.FieldName.ToElasticFieldName(),
-                    Location = new[] { geoSorting.Location.ToGeoLocation() },
+                    Location = [geoSorting.Location.ToGeoLocation()],
                     Order = geoSorting.IsDescending ? SortOrder.Desc : SortOrder.Asc,
                 },
             };
@@ -182,7 +265,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
             {
                 Field = new FieldSort(Field.ScoreField)
                 {
-                    Order = field.IsDescending ? SortOrder.Desc : SortOrder.Asc
+                    Order = field.IsDescending ? SortOrder.Desc : SortOrder.Asc,
                 },
             };
         }
@@ -194,7 +277,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
                 {
                     Order = field.IsDescending ? SortOrder.Desc : SortOrder.Asc,
                     Missing = "_last",
-                    UnmappedType = FieldType.Long
+                    UnmappedType = FieldType.Long,
                 },
             };
         }
@@ -204,14 +287,14 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
 
     protected virtual bool IsScoreField(VirtoCommerceSortingField field)
     {
-        return field.FieldName.EqualsInvariant(ModuleConstants.ScoreFieldName) ||
-                        field.FieldName.EqualsInvariant(ModuleConstants.ElasticScoreFieldName);
+        return field.FieldName.EqualsIgnoreCase(ModuleConstants.ScoreFieldName) ||
+               field.FieldName.EqualsIgnoreCase(ModuleConstants.ElasticScoreFieldName);
     }
 
     protected virtual SourceConfig GetSourceFilters(IList<string> includeFields)
     {
         return includeFields != null
-            ? new SourceConfig(new SourceFilter { Includes = includeFields.ToArray() })
+            ? new SourceConfig(new SourceFilter { Includes = includeFields.Select(x => x.ToElasticFieldName()).ToArray() })
             : null;
     }
 }

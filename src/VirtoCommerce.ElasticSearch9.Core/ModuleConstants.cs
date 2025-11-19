@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using VirtoCommerce.Platform.Core.Settings;
 
@@ -17,7 +18,12 @@ public static class ModuleConstants
     public const string SearchableFieldAnalyzerName = "searchable_field_analyzer";
     public const string NGramFilterName = "custom_ngram";
     public const string EdgeNGramFilterName = "custom_edge_ngram";
+
+    [Obsolete("Use SuggestionFieldName instead.", DiagnosticId = "VC0011", UrlFormat = "https://docs.virtocommerce.org/products/products-virto3-versions")]
     public const string CompletionSubFieldName = "completion";
+
+    public const string SuggestionFieldName = "completion";
+    public const int SuggestionFieldTokens = 8;
     public const int SuggestionFieldLength = 256;
 
     // Semantic/vector search section
@@ -43,8 +49,6 @@ public static class ModuleConstants
     {
         public static class General
         {
-
-
             public static SettingDescriptor IndexTotalFieldsLimit { get; } = new()
             {
                 Name = "VirtoCommerce.Search.ElasticSearch9.IndexTotalFieldsLimit",
@@ -85,13 +89,13 @@ public static class ModuleConstants
                 DefaultValue = DefaultMinScore,
             };
 
-            public static SettingDescriptor MinScorePerDocumentType { get; } = new SettingDescriptor
+            public static SettingDescriptor MinScorePerDocumentType { get; } = new()
             {
                 Name = "VirtoCommerce.Search.ElasticSearch9.MinScorePerDocumentType",
                 GroupName = "Search|ElasticSearch9|General",
                 ValueType = SettingValueType.Json,
                 DefaultValue =
-                    $$"""
+                    """
                     [
                         {
                           "documentType": "Product",
@@ -107,7 +111,6 @@ public static class ModuleConstants
                         }
                     ]
                     """,
-
             };
 
             public static SettingDescriptor SemanticSearchType { get; } = new()
