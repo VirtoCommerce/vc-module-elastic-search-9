@@ -680,6 +680,19 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         }
     }
 
+    protected virtual async Task CreateIndexAsync(string documentType, string indexName, string alias)
+    {
+        var response = await Client.Indices.CreateAsync(indexName, descriptor => descriptor
+            .Settings(x => ConfigureIndexSettings(x, documentType))
+            .Aliases(x => ConfigureIndexAliases(x, documentType, indexName, alias)
+        ));
+
+        if (!response.IsValidResponse)
+        {
+            ThrowException($"Failed to create index. {response.DebugInformation}", response.ApiCallDetails.OriginalException);
+        }
+    }
+
     [Obsolete("Use ConfigureIndexSettings with documentType parameter", DiagnosticId = "VC0011", UrlFormat = "https://docs.virtocommerce.org/products/products-virto3-versions/")]
     protected virtual IndexSettingsDescriptor ConfigureIndexSettings(IndexSettingsDescriptor settings)
     {
@@ -694,19 +707,6 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
                 .Analyzers(ConfigureAnalyzers)
                 .Normalizers(ConfigureNormalizers)
             );
-    }
-
-    protected virtual async Task CreateIndexAsync(string documentType, string indexName, string alias)
-    {
-        var response = await Client.Indices.CreateAsync(indexName, descriptor => descriptor
-            .Settings(x => ConfigureIndexSettings(x, documentType))
-            .Aliases(x => ConfigureIndexAliases(x, documentType, indexName, alias)
-        ));
-
-        if (!response.IsValidResponse)
-        {
-            ThrowException($"Failed to create index. {response.DebugInformation}", response.ApiCallDetails.OriginalException);
-        }
     }
 
     protected virtual IndexSettingsDescriptor ConfigureIndexSettings(IndexSettingsDescriptor settings, string documentType)

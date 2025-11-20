@@ -53,7 +53,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
             Sort = GetSorting(request.Sorting),
             From = request.Skip,
             Size = request.Take,
-            TrackScores = request?.Sorting?.Any(IsScoreField),
+            TrackScores = request.Sorting?.Any(IsScoreField),
             Source = GetSourceFilters(request.IncludeFields),
             TrackTotalHits = new TrackHits(true),
             // Apply MinScore for Search by Keywords Only
