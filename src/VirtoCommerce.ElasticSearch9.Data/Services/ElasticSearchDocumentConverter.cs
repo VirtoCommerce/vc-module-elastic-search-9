@@ -116,7 +116,7 @@ public class ElasticSearchDocumentConverter(IElasticSearchPropertyService proper
         if (property is GeoPointProperty)
         {
             result = isCollection
-                ? field.Values?.OfType<GeoPoint>()?.Select(x => x.ToElasticValue())?.ToArray()
+                ? field.Values?.OfType<GeoPoint>().Select(x => x.ToElasticValue()).ToArray()
                 : (field.Value as GeoPoint)?.ToElasticValue();
         }
         else
