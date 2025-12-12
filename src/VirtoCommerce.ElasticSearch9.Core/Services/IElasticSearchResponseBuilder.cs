@@ -7,4 +7,5 @@ namespace VirtoCommerce.ElasticSearch9.Core.Services;
 public interface IElasticSearchResponseBuilder
 {
     SearchResponse ToSearchResponse(SearchResponse<SearchDocument> response, VirtoCommerceSearchRequest request);
+    SuggestionResponse ToSuggestionResponse(SearchResponse<SearchDocument> response, SuggestionRequest request);
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -6,6 +7,7 @@ using Elastic.Clients.Elasticsearch.Aggregations;
 using Elastic.Clients.Elasticsearch.Core.Search;
 using VirtoCommerce.ElasticSearch9.Core.Services;
 using VirtoCommerce.ElasticSearch9.Data.Extensions;
+using VirtoCommerce.Platform.Core.Common;
 using VirtoCommerce.SearchModule.Core.Extensions;
 using VirtoCommerce.SearchModule.Core.Model;
 using VirtoCommerceSearchRequest = VirtoCommerce.SearchModule.Core.Model.SearchRequest;
@@ -16,7 +18,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
 {
     public virtual SearchResponse ToSearchResponse(SearchResponse<SearchDocument> response, VirtoCommerceSearchRequest request)
     {
-        var result = new SearchResponse();
+        var result = AbstractTypeFactory<SearchResponse>.TryCreateInstance();
 
         if (response.Total > 0)
         {
@@ -29,18 +31,26 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         return result;
     }
 
+    public SuggestionResponse ToSuggestionResponse(SearchResponse<SearchDocument> response, SuggestionRequest request)
+    {
+        var result = AbstractTypeFactory<SuggestionResponse>.TryCreateInstance();
+
+        result.Suggestions = GetSuggestions(response.Suggest, request);
+
+        return result;
+    }
+
     protected virtual SearchDocument ToSearchDocument(Hit<SearchDocument> hit)
     {
         var result = new SearchDocument { Id = hit.Id };
 
         var fields = hit.Source ?? hit.Fields as IDictionary<string, object>;
 
-        if (fields != null)
+        if (fields?.Count > 0)
         {
-            foreach (var field in fields)
+            foreach (var (name, field) in fields)
             {
-                var name = field.Key;
-                var value = GetValue(field.Value);
+                var value = GetValue(field);
 
                 result.Add(name, value);
             }
@@ -51,7 +61,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         return result;
     }
 
-    private static object GetValue(object value)
+    protected static object GetValue(object value)
     {
         var result = value;
 
@@ -60,34 +70,23 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
             return result;
         }
 
-        switch (jsonElement.ValueKind)
+        result = jsonElement.ValueKind switch
         {
-            case JsonValueKind.Array:
-                result = jsonElement.EnumerateArray().Select(x => GetValue(x)).ToArray();
-                break;
-            case JsonValueKind.Number:
-                result = jsonElement.GetDouble();
-                break;
-            case JsonValueKind.True:
-            case JsonValueKind.False:
-                result = jsonElement.GetBoolean();
-                break;
-            case JsonValueKind.Null:
-                result = null;
-                break;
-            default:
-                result = jsonElement.ToString();
-                break;
-        }
+            JsonValueKind.Array => jsonElement.EnumerateArray().Select(x => GetValue(x)).ToArray(),
+            JsonValueKind.Number => jsonElement.GetDouble(),
+            JsonValueKind.True or JsonValueKind.False => jsonElement.GetBoolean(),
+            JsonValueKind.Null => null,
+            _ => jsonElement.ToString(),
+        };
 
         return result;
     }
 
-    private static List<AggregationResponse> GetAggregations(AggregateDictionary searchResponseAggregations, VirtoCommerceSearchRequest request)
+    protected static List<AggregationResponse> GetAggregations(AggregateDictionary searchResponseAggregations, VirtoCommerceSearchRequest request)
     {
         var result = new List<AggregationResponse>();
 
-        if (searchResponseAggregations == null || (request?.Aggregations) == null)
+        if (searchResponseAggregations == null || request?.Aggregations == null)
         {
             return result;
         }
@@ -97,16 +96,17 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
             var aggregationResponse = new AggregationResponse
             {
                 Id = aggregationRequest.Id ?? aggregationRequest.FieldName,
-                Values = new List<AggregationResponseValue>()
+                Values = new List<AggregationResponseValue>(),
             };
 
-            if (aggregationRequest is TermAggregationRequest)
+            switch (aggregationRequest)
             {
-                AddAggregationValues(aggregationResponse, aggregationResponse.Id, aggregationResponse.Id, searchResponseAggregations);
-            }
-            else if (aggregationRequest is RangeAggregationRequest rangeAggregationRequest && rangeAggregationRequest.Values != null)
-            {
-                AddRangeAggregationValues(searchResponseAggregations, aggregationResponse, rangeAggregationRequest);
+                case TermAggregationRequest:
+                    AddAggregationValues(aggregationResponse, aggregationResponse.Id, aggregationResponse.Id, searchResponseAggregations);
+                    break;
+                case RangeAggregationRequest { Values: not null } rangeAggregationRequest:
+                    AddRangeAggregationValues(searchResponseAggregations, aggregationResponse, rangeAggregationRequest);
+                    break;
             }
 
             if (aggregationResponse.Values.Any())
@@ -119,7 +119,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         return result;
     }
 
-    private static void AddAggregationValues(AggregationResponse aggregation, string responseKey, string valueId, AggregateDictionary searchResponseAggregations)
+    protected static void AddAggregationValues(AggregationResponse aggregation, string responseKey, string valueId, AggregateDictionary searchResponseAggregations)
     {
         if (!searchResponseAggregations.TryGetValue(responseKey, out var aggregate))
         {
@@ -129,7 +129,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         ConvertAggregate(aggregation, responseKey, valueId, aggregate);
     }
 
-    private static void ConvertAggregate(AggregationResponse aggregation, string responseKey, string valueId, IAggregate aggregate)
+    protected static void ConvertAggregate(AggregationResponse aggregation, string responseKey, string valueId, IAggregate aggregate)
     {
         switch (aggregate)
         {
@@ -139,7 +139,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
                     var aggregationValue = new AggregationResponseValue
                     {
                         Id = bucket.Key.Value?.ToString(),
-                        Count = bucket.DocCount
+                        Count = bucket.DocCount,
                     };
                     aggregation.Values.Add(aggregationValue);
                 }
@@ -150,7 +150,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
                     var aggregationValue = new AggregationResponseValue
                     {
                         Id = bucket.KeyAsString ?? bucket.Key.ToStringInvariant(),
-                        Count = bucket.DocCount
+                        Count = bucket.DocCount,
                     };
                     aggregation.Values.Add(aggregationValue);
                 }
@@ -161,7 +161,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
                     var aggregationValue = new AggregationResponseValue
                     {
                         Id = bucket.KeyAsString ?? bucket.Key.ToStringInvariant(),
-                        Count = bucket.DocCount
+                        Count = bucket.DocCount,
                     };
                     aggregation.Values.Add(aggregationValue);
                 }
@@ -170,7 +170,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
             case FiltersAggregate filtersAggregate:
                 foreach (var bucket in filtersAggregate.Buckets.Where(x => x.DocCount > 0))
                 {
-                    if (bucket.Aggregations.TryGetValue(responseKey, out var bucketValues))
+                    if (bucket.Aggregations?.TryGetValue(responseKey, out var bucketValues) == true)
                     {
                         ConvertAggregate(aggregation, responseKey, valueId, bucketValues);
                     }
@@ -179,7 +179,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
                         var aggregationValue = new AggregationResponseValue
                         {
                             Id = valueId,
-                            Count = bucket.DocCount
+                            Count = bucket.DocCount,
                         };
                         aggregation.Values.Add(aggregationValue);
                     }
@@ -191,7 +191,7 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         }
     }
 
-    private static void AddRangeAggregationValues(AggregateDictionary searchResponseAggregations, AggregationResponse aggregationResponse, RangeAggregationRequest rangeAggregationRequest)
+    protected static void AddRangeAggregationValues(AggregateDictionary searchResponseAggregations, AggregationResponse aggregationResponse, RangeAggregationRequest rangeAggregationRequest)
     {
         foreach (var queryValueId in rangeAggregationRequest.Values.Select(x => x.Id))
         {
@@ -202,12 +202,12 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
         TryAddAggregationStatistics(searchResponseAggregations, aggregationResponse);
     }
 
-    private static void TryAddAggregationStatistics(AggregateDictionary searchResponseAggregations, AggregationResponse aggregationResponse)
+    protected static void TryAddAggregationStatistics(AggregateDictionary searchResponseAggregations, AggregationResponse aggregationResponse)
     {
         var statsId = $"{aggregationResponse.Id}-stats";
 
         if (searchResponseAggregations.GetValueOrDefault(statsId) is FilterAggregate filterAggregate &&
-            filterAggregate.Aggregations.GetValueOrDefault("stats") is StatsAggregate stats)
+            filterAggregate.Aggregations?.GetValueOrDefault("stats") is StatsAggregate stats)
         {
             aggregationResponse.Statistics = new AggregationStatistics
             {
@@ -215,5 +215,29 @@ public class ElasticSearchResponseBuilder : IElasticSearchResponseBuilder
                 Max = stats.Max,
             };
         }
+    }
+
+    protected static IList<string> GetSuggestions(SuggestDictionary<SearchDocument> responseSuggest, SuggestionRequest request)
+    {
+        if (responseSuggest == null || request?.Fields == null)
+        {
+            return [];
+        }
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var key in responseSuggest.Keys)
+        {
+            var completion = responseSuggest.GetCompletion(key);
+            if (completion is null)
+            {
+                continue;
+            }
+
+            result.UnionWith(completion.SelectMany(x => x.Options).Where(x => !string.IsNullOrEmpty(x.Text))
+                .Select(x => x.Text));
+        }
+
+        return result.ToList();
     }
 }
