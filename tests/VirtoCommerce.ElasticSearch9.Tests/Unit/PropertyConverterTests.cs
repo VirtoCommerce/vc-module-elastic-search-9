@@ -30,7 +30,7 @@ public class PropertyConverterTests
     public void CanConvertEntityToNestedProperty(string name, object value)
     {
         // Arragne
-        var target = new ElasticSearchPropertyService();
+        var target = new ElasticSearchPropertyService(null);
 
         // Act
         var result = target.CreateProperty(new IndexDocumentField(name, value, IndexDocumentFieldValueType.Complex));

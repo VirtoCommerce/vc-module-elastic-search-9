@@ -62,7 +62,7 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
 
         // use Knn search and rank feature
         if (_settingsManager.GetSemanticSearchType() == ModuleConstants.ThirdPartyModel
-            && !string.IsNullOrEmpty(request.SearchKeywords))
+            && (!string.IsNullOrEmpty(request?.SearchKeywords) || request?.DenseVector?.Any() == true))
         {
             var numCandidates = request.Take * 2;
             numCandidates = numCandidates <= NearestNeighborMaxCandidates ? numCandidates : NearestNeighborMaxCandidates;
@@ -71,16 +71,26 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
             {
                 K = request.Take,
                 NumCandidates = numCandidates,
-                Field = ModuleConstants.VectorPropertyName,
-                QueryVectorBuilder = new QueryVectorBuilder
+                Field = request.DenseVector.IsNullOrEmpty()
+                    ? ModuleConstants.VectorPropertyName
+                    : ModuleConstants.VectorFieldName,
+            };
+
+            if (request.DenseVector.IsNullOrEmpty())
+            {
+                knn.QueryVectorBuilder = new QueryVectorBuilder
                 {
                     TextEmbedding = new TextEmbedding
                     {
                         ModelId = _settingsManager.GetModelId(),
                         ModelText = request.SearchKeywords,
                     },
-                },
-            };
+                };
+            }
+            else
+            {
+                knn.QueryVector = request.DenseVector;
+            }
 
             result.Knn = new List<KnnSearch> { knn };
         }

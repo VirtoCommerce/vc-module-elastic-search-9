@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using Elastic.Clients.Elasticsearch.Mapping;
 using VirtoCommerce.ElasticSearch9.Core;
 using VirtoCommerce.ElasticSearch9.Core.Services;
+using VirtoCommerce.ElasticSearch9.Data.Extensions;
 using VirtoCommerce.Platform.Core.Common;
+using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.SearchModule.Core.Model;
 
 namespace VirtoCommerce.ElasticSearch9.Data.Services;
 
-public class ElasticSearchPropertyService : IElasticSearchPropertyService
+public class ElasticSearchPropertyService(ISettingsManager settingsManager) : IElasticSearchPropertyService
 {
     public virtual IProperty CreateProperty(IndexDocumentField field)
     {
@@ -30,6 +32,7 @@ public class ElasticSearchPropertyService : IElasticSearchPropertyService
             IndexDocumentFieldValueType.DateTime => new DateProperty(),
             IndexDocumentFieldValueType.Boolean => new BooleanProperty(),
             IndexDocumentFieldValueType.GeoPoint => new GeoPointProperty(),
+            IndexDocumentFieldValueType.DenseVector => new DenseVectorProperty(),
             _ => throw new ArgumentException($"Field '{field.Name}' has unsupported type '{field.ValueType}'", nameof(field))
         };
     }
@@ -89,6 +92,9 @@ public class ElasticSearchPropertyService : IElasticSearchPropertyService
                 break;
             case KeywordProperty keywordProperty:
                 ConfigureKeywordProperty(keywordProperty, field);
+                break;
+            case DenseVectorProperty denseVectorProperty:
+                ConfigureDenseVectorProperty(denseVectorProperty, field);
                 break;
         }
     }
@@ -158,5 +164,14 @@ public class ElasticSearchPropertyService : IElasticSearchPropertyService
         textProperty.Analyzer = field.IsSearchable ? ModuleConstants.SearchableFieldAnalyzerName : null;
 
         return textProperty;
+    }
+
+    protected virtual DenseVectorProperty ConfigureDenseVectorProperty(DenseVectorProperty denseVectorProperty, IndexDocumentField field)
+    {
+        denseVectorProperty.Index = true;
+        denseVectorProperty.Dims = settingsManager.GetVectorModelDimensionsCount();
+        denseVectorProperty.Similarity = DenseVectorSimilarity.Cosine;
+
+        return denseVectorProperty;
     }
 }
