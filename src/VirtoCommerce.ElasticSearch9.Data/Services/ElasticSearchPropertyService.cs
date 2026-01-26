@@ -94,9 +94,16 @@ public class ElasticSearchPropertyService(ISettingsManager settingsManager) : IE
                 ConfigureKeywordProperty(keywordProperty, field);
                 break;
             case DenseVectorProperty denseVectorProperty:
-                ConfigureDenseVectorProperty(denseVectorProperty, field);
+                ConfigureDenseVectorProperty(denseVectorProperty);
                 break;
         }
+    }
+
+    public virtual void ConfigureDenseVectorProperty(DenseVectorProperty denseVectorProperty)
+    {
+        denseVectorProperty.Index = true;
+        denseVectorProperty.Dims = settingsManager.GetVectorModelDimensionsCount();
+        denseVectorProperty.Similarity = DenseVectorSimilarity.Cosine;
     }
 
     protected virtual IProperty CreateProviderFieldByValue(IndexDocumentField field)
@@ -164,14 +171,5 @@ public class ElasticSearchPropertyService(ISettingsManager settingsManager) : IE
         textProperty.Analyzer = field.IsSearchable ? ModuleConstants.SearchableFieldAnalyzerName : null;
 
         return textProperty;
-    }
-
-    protected virtual DenseVectorProperty ConfigureDenseVectorProperty(DenseVectorProperty denseVectorProperty, IndexDocumentField field)
-    {
-        denseVectorProperty.Index = true;
-        denseVectorProperty.Dims = settingsManager.GetVectorModelDimensionsCount();
-        denseVectorProperty.Similarity = DenseVectorSimilarity.Cosine;
-
-        return denseVectorProperty;
     }
 }

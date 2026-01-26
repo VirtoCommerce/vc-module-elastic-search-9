@@ -490,7 +490,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
                     break;
                 case ModuleConstants.ThirdPartyModel:
                     var vectorProperty = new DenseVectorProperty();
-                    _propertyService.ConfigureProperty(vectorProperty, null);
+                    _propertyService.ConfigureDenseVectorProperty(vectorProperty);
                     properties = new Properties
                     {
                         {
