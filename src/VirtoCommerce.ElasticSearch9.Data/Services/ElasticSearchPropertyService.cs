@@ -99,11 +99,11 @@ public class ElasticSearchPropertyService(ISettingsManager settingsManager) : IE
         }
     }
 
-    public virtual void ConfigureDenseVectorProperty(DenseVectorProperty denseVectorProperty)
+    public virtual void ConfigureDenseVectorProperty(DenseVectorProperty property)
     {
-        denseVectorProperty.Index = true;
-        denseVectorProperty.Dims = settingsManager.GetVectorModelDimensionsCount();
-        denseVectorProperty.Similarity = DenseVectorSimilarity.Cosine;
+        property.Index = true;
+        property.Dims = settingsManager.GetVectorModelDimensionsCount();
+        property.Similarity = DenseVectorSimilarity.Cosine;
     }
 
     protected virtual IProperty CreateProviderFieldByValue(IndexDocumentField field)
