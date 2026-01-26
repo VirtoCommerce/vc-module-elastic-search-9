@@ -35,6 +35,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     private readonly IElasticSearchResponseBuilder _searchResponseBuilder;
     private readonly IElasticSearchDocumentConverter _documentConverter;
     private readonly ILogger<ElasticSearch9Provider> _logger;
+    private readonly IElasticSearchPropertyService _propertyService;
 
     private readonly ConcurrentDictionary<string, IDictionary<PropertyName, IProperty>> _mappings = new();
 
@@ -57,8 +58,9 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         IElasticSearchRequestBuilder searchRequestBuilder,
         IElasticSearchResponseBuilder searchResponseBuilder,
         IElasticSearchDocumentConverter documentConverter,
-        ILogger<ElasticSearch9Provider> logger
-        )
+        ILogger<ElasticSearch9Provider> logger,
+        IElasticSearchPropertyService propertyService
+    )
     {
         _searchOptions = searchOptions.Value;
         _settingsManager = settingsManager;
@@ -66,6 +68,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         _searchResponseBuilder = searchResponseBuilder;
         _documentConverter = documentConverter;
         _logger = logger;
+        _propertyService = propertyService;
 
         if (!string.IsNullOrEmpty(elasticOptions.Value.Server))
         {
@@ -476,25 +479,27 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         if (!indexMappings.ContainsKey(ModuleConstants.ModelPropertyName))
         {
             var semanticSearchModelType = _settingsManager.GetSemanticSearchType();
-            var properties = semanticSearchModelType switch
+            Properties properties = null;
+            switch (semanticSearchModelType)
             {
-                ModuleConstants.ElserModel => new Properties
+                case ModuleConstants.ElserModel:
+                    properties = new Properties
                     {
-                        { ModuleConstants.TokensPropertyName, new SparseVectorProperty() },
-                    },
-                ModuleConstants.ThirdPartyModel => new Properties
+                        { ModuleConstants.TokensFieldName, new SparseVectorProperty() },
+                    };
+                    break;
+                case ModuleConstants.ThirdPartyModel:
+                    var vectorProperty = new DenseVectorProperty();
+                    _propertyService.ConfigureProperty(vectorProperty, null);
+                    properties = new Properties
                     {
                         {
-                            ModuleConstants.VectorPropertyName, new DenseVectorProperty
-                            {
-                                Index = true,
-                                Dims = _settingsManager.GetVectorModelDimensionsCount(),
-                                Similarity = DenseVectorSimilarity.Cosine,
-                            }
-                        }
-                    },
-                _ => null,
-            };
+                            ModuleConstants.VectorFieldName,
+                            vectorProperty
+                        },
+                    };
+                    break;
+            }
 
             if (properties is null)
             {

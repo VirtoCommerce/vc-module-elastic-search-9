@@ -49,7 +49,8 @@ public class ElasticSearch9Tests : SearchProviderTests
             requestBuilder,
             responseBuilder,
             documentConverter,
-            providerLogger
+            providerLogger,
+            propertyService
             );
 
         return provider;
