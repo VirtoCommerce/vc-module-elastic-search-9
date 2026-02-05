@@ -37,7 +37,7 @@ public class ElasticSearch9Tests : SearchProviderTests
         var requestBuilder = new ElasticSearchRequestBuilder(filtersBuilder, aggregationsBuilder, settingsManager, builderLogger);
 
         var responseBuilder = new ElasticSearchResponseBuilder();
-        var propertyService = new ElasticSearchPropertyService();
+        var propertyService = new ElasticSearchPropertyService(settingsManager);
         var documentConverter = new ElasticSearchDocumentConverter(propertyService);
 
         var providerLogger = loggerFactory.CreateLogger<ElasticSearch9Provider>();
@@ -49,7 +49,8 @@ public class ElasticSearch9Tests : SearchProviderTests
             requestBuilder,
             responseBuilder,
             documentConverter,
-            providerLogger
+            providerLogger,
+            propertyService
             );
 
         return provider;

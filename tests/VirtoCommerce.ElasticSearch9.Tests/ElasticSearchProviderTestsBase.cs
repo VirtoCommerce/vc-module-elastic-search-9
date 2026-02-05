@@ -253,7 +253,7 @@ public abstract class ElasticSearchProviderTestsBase
         return result ?? 0;
     }
 
-    protected virtual ISettingsManager GetSettingsManager()
+    public static ISettingsManager GetSettingsManager()
     {
         var mock = new Mock<ITestSettingsManager>();
 
