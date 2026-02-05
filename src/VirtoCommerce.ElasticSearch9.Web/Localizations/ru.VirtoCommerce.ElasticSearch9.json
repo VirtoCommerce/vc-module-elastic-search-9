@@ -3,7 +3,7 @@
     "VirtoCommerce.Search.ElasticSearch9": {
       "IndexTotalFieldsLimit": {
         "title": "Максимальное количество полей в индексе",
-        "description": "Укажите максимальное количество полей, которые могут быть включены в индекс. Превышение этого лимита может привести к проблемам с производительностью. Подробнее см. в документации Elasticsearch8: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
+        "description": "Укажите максимальное количество полей, которые могут быть включены в индекс. Превышение этого лимита может привести к проблемам с производительностью. Подробнее см. в документации Elasticsearch9: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
       },
       "TokenFilter": {
         "title": "Фильтр токенов",

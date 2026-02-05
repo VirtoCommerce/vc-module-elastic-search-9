@@ -3,7 +3,7 @@
     "VirtoCommerce.Search.ElasticSearch9": {
       "IndexTotalFieldsLimit": {
         "title": "索引中的最大字段数",
-        "description": "指定索引中可包含的最大字段数。超过此限制可能导致性能问题。有关更多详细信息，请参阅Elasticsearch8文档：https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
+        "description": "指定索引中可包含的最大字段数。超过此限制可能导致性能问题。有关更多详细信息，请参阅Elasticsearch9文档：https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
       },
       "TokenFilter": {
         "title": "标记过滤器",

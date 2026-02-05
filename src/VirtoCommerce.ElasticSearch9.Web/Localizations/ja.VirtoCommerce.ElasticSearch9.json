@@ -3,7 +3,7 @@
     "VirtoCommerce.Search.ElasticSearch9": {
       "IndexTotalFieldsLimit": {
         "title": "インデックス内のフィールドの最大数",
-        "description": "インデックスに含めることができるフィールドの最大数を指定します。この制限を超えるとパフォーマンスに問題が発生する可能性があります。詳細については、Elasticsearch8のドキュメントをご参照ください: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
+        "description": "インデックスに含めることができるフィールドの最大数を指定します。この制限を超えるとパフォーマンスに問題が発生する可能性があります。詳細については、Elasticsearch9のドキュメントをご参照ください: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
       },
       "TokenFilter": {
         "title": "トークンフィルター",

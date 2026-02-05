@@ -3,7 +3,7 @@
     "VirtoCommerce.Search.ElasticSearch9": {
       "IndexTotalFieldsLimit": {
         "title": "Número máximo de campos en un índice",
-        "description": "Especifique el número máximo de campos que se pueden incluir en un índice. Superar este límite puede causar problemas de rendimiento. Para más detalles, consulte la documentación de Elasticsearch8: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
+        "description": "Especifique el número máximo de campos que se pueden incluir en un índice. Superar este límite puede causar problemas de rendimiento. Para más detalles, consulte la documentación de Elasticsearch9: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#mapping-limit-settings"
       },
       "TokenFilter": {
         "title": "Filtro de token",
