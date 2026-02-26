@@ -129,7 +129,9 @@ public class ElasticSearchRequestBuilder : IElasticSearchRequestBuilder
         };
 
         // Filter contexts to avoid response deserialization issues
+#pragma warning disable ESCEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
         result.FilterPath = ["-**.options._ignored", "-**.options.contexts"];
+#pragma warning restore ESCEXP0001 
 
         return result;
     }

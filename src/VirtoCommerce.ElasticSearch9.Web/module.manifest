@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <module>
   <id>VirtoCommerce.ElasticSearch9</id>
-  <version>3.807.0</version>
+  <version>3.1000.0</version>
   <version-tag></version-tag>
 
-  <platformVersion>3.917.0</platformVersion>
+  <platformVersion>3.1002.0</platformVersion>
   <dependencies>
-    <dependency id="VirtoCommerce.Search" version="3.824.0" />
+    <dependency id="VirtoCommerce.Search" version="3.1000.0" />
   </dependencies>
   <incompatibilities>
-    <dependency id="VirtoCommerce.ElasticSearch8" version="3.800.0" />
+    <dependency id="VirtoCommerce.ElasticSearch8" version="3.1000.0" />
   </incompatibilities>
 
   <title>Elastic Search 9</title>
@@ -30,7 +30,7 @@
   <moduleType>VirtoCommerce.ElasticSearch9.Web.Module, VirtoCommerce.ElasticSearch9.Web</moduleType>
 
   <releaseNotes>First version.</releaseNotes>
-  <copyright>Copyright © 2025 VirtoCommerce. All rights reserved</copyright>
+  <copyright>Copyright © 2025-2026 VirtoCommerce. All rights reserved</copyright>
   <tags>extension module</tags>
   <useFullTypeNameInSwagger>false</useFullTypeNameInSwagger>
 </module>
