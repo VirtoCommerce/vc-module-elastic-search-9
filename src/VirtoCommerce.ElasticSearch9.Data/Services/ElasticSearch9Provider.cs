@@ -120,7 +120,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             var providerRequest = _searchRequestBuilder.BuildRequest(request, indexName, documentType, availableFields);
             var providerResponse = await Client.SearchAsync<SearchDocument>(providerRequest);
 
-            if (!providerResponse.IsValidResponse && providerResponse.ApiCallDetails.HttpStatusCode != (int)HttpStatusCode.NotFound)
+            if (!providerResponse.IsValidResponse)
             {
                 ThrowException($"Search failed. {providerResponse.DebugInformation}", providerResponse.ApiCallDetails.OriginalException);
             }
@@ -355,7 +355,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             }
 
             var providerResponse = await Client.SearchAsync<SearchDocument>(providerRequest);
-            if (!providerResponse.IsValidResponse && providerResponse.ApiCallDetails.HttpStatusCode != (int)HttpStatusCode.NotFound)
+            if (!providerResponse.IsValidResponse)
             {
                 ThrowException($"Get suggestions failed. {providerResponse.DebugInformation}", providerResponse.ApiCallDetails.OriginalException);
             }
