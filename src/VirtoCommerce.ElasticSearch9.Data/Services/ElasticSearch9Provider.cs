@@ -13,6 +13,7 @@ using Elastic.Clients.Elasticsearch.IndexManagement;
 using Elastic.Clients.Elasticsearch.Ingest;
 using Elastic.Clients.Elasticsearch.Mapping;
 using Elastic.Transport;
+using Elastic.Transport.Products.Elasticsearch;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using VirtoCommerce.ElasticSearch9.Core;
@@ -122,6 +123,13 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
 
             if (!providerResponse.IsValidResponse)
             {
+                if (IsIndexNotFoundError(providerResponse))
+                {
+                    // Suppress index not found error, because it can be normal in case when index was not created yet or was deleted. In this case return empty search result.
+                    _logger.LogWarning("Index {indexName} not found while trying to search. Returning empty result. Possible cause - index was not created yet or was deleted.", indexName);
+                    return AbstractTypeFactory<SearchResponse>.TryCreateInstance();
+                }
+
                 ThrowException($"Search failed. {providerResponse.DebugInformation}", providerResponse.ApiCallDetails.OriginalException);
             }
 
@@ -342,7 +350,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         {
             if (request.Fields.IsNullOrEmpty())
             {
-                return new SuggestionResponse();
+                return AbstractTypeFactory<SuggestionResponse>.TryCreateInstance();
             }
 
             var indexName = GetIndexName(request.UseBackupIndex, documentType);
@@ -351,13 +359,22 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             var providerRequest = _searchRequestBuilder.BuildSuggestionRequest(request, indexName, documentType, availableFields);
             if (providerRequest.Suggest is null)
             {
-                return new SuggestionResponse();
+                return AbstractTypeFactory<SuggestionResponse>.TryCreateInstance();
             }
 
             var providerResponse = await Client.SearchAsync<SearchDocument>(providerRequest);
             if (!providerResponse.IsValidResponse)
             {
-                ThrowException($"Get suggestions failed. {providerResponse.DebugInformation}", providerResponse.ApiCallDetails.OriginalException);
+                if (IsIndexNotFoundError(providerResponse))
+                {
+                    // Suppress index not found error, because it can be normal in case when index was not created yet or was deleted. In this case return empty suggestions result.
+                    _logger.LogWarning("Index {indexName} not found while trying to get suggestions.", indexName);
+                    return AbstractTypeFactory<SuggestionResponse>.TryCreateInstance();
+                }
+                else
+                {
+                    ThrowException($"Get suggestions failed. {providerResponse.DebugInformation}", providerResponse.ApiCallDetails.OriginalException);
+                }
             }
 
             var result = _searchResponseBuilder.ToSuggestionResponse(providerResponse, request);
@@ -373,6 +390,13 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             ThrowException("Get suggestions failed.", ex);
             return null;
         }
+    }
+
+    protected virtual bool IsIndexNotFoundError(ElasticsearchResponse response)
+    {
+        return !response.IsValidResponse &&
+            response.ApiCallDetails?.HttpStatusCode == (int)HttpStatusCode.NotFound &&
+            response.ElasticsearchServerError?.Error?.Type == "index_not_found_exception";
     }
 
     protected virtual bool IsDenseVectorMode(IList<IndexDocument> documents)
@@ -579,8 +603,14 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         if (indexName != null)
         {
             var response = await Client.Indices.DeleteAsync(indexName);
-            if (!response.IsValidResponse && response.ApiCallDetails.HttpStatusCode != (int)HttpStatusCode.NotFound)
+            if (!response.IsValidResponse)
             {
+                if (IsIndexNotFoundError(response))
+                {
+                    _logger.LogInformation("Index {indexName} not found while trying to delete it. It may be already deleted.", indexName);
+                    return;
+                }
+
                 ThrowException($"Failed to delete index. {response.DebugInformation}", response.ApiCallDetails.OriginalException);
             }
         }
