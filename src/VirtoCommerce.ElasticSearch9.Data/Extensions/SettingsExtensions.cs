@@ -111,5 +111,10 @@ namespace VirtoCommerce.ElasticSearch9.Data.Extensions
             var value = (float)settingsManager.GetValue<decimal>(ModuleSettings.SemanticBoost);
             return value > 0 ? value : null;
         }
+
+        public static bool GetDeleteDuplicateIndexes(this ISettingsManager settingsManager)
+        {
+            return settingsManager.GetValue<bool>(ModuleSettings.DeleteDuplicateIndexes);
+        }
     }
 }
