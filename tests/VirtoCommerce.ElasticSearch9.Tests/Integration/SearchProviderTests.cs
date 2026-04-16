@@ -1,5 +1,8 @@
+using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using ElasticsearchClient = Elastic.Clients.Elasticsearch.ElasticsearchClient;
 using VirtoCommerce.SearchModule.Core.Model;
 using VirtoCommerce.SearchModule.Core.Services;
 using Xunit;
@@ -79,6 +82,31 @@ public abstract class SearchProviderTests : ElasticSearchProviderTestsBase
     }
 
     [Fact]
+    public virtual async Task ConcurrentFirstIndexCreation_ShouldKeepSingleActiveIndex()
+    {
+        var provider = GetSearchProvider();
+        var documentType = $"item-{Guid.NewGuid():N}";
+        var primaryDocuments = GetPrimaryDocuments();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 4)
+            .Select(_ => provider.IndexAsync(documentType, primaryDocuments)));
+
+        Assert.All(results, response =>
+        {
+            Assert.NotNull(response);
+            Assert.NotNull(response.Items);
+            Assert.Equal(primaryDocuments.Count, response.Items.Count);
+            Assert.All(response.Items, item => Assert.True(item.Succeeded, item.ErrorMessage));
+        });
+
+        var client = GetElasticsearchClient(provider);
+        var aliasResponse = await client.Indices.GetAsync($"test-core-{documentType}-active");
+
+        Assert.True(aliasResponse.IsValidResponse, aliasResponse.DebugInformation);
+        Assert.Single(aliasResponse.Indices);
+    }
+
+    [Fact]
     public virtual async Task CanLimitResults()
     {
         var provider = GetSearchProvider();
@@ -93,6 +121,17 @@ public abstract class SearchProviderTests : ElasticSearchProviderTestsBase
 
         Assert.Equal(2, response.DocumentsCount);
         Assert.Equal(6, response.TotalCount);
+    }
+
+    protected virtual ElasticsearchClient GetElasticsearchClient(ISearchProvider provider)
+    {
+        var clientProperty = provider.GetType().GetProperty("Client", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(clientProperty);
+
+        var client = clientProperty.GetValue(provider) as ElasticsearchClient;
+        Assert.NotNull(client);
+
+        return client;
     }
 
     [Fact]

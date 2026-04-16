@@ -24,7 +24,7 @@ public class ElasticSearch9Tests : SearchProviderTests
     protected override ISearchProvider GetSearchProvider()
     {
         var searchOptions = Options.Create(new SearchOptions { Scope = "test-core", Provider = "ElasticSearch9" });
-        var elasticOptions = Options.Create(_configuration.GetSection("ElasticSearch9").Get<ElasticSearch9Options>());
+        var elasticOptions = Options.Create(_configuration.GetSection("ElasticSearch9").Get<ElasticSearch9Options>() ?? new ElasticSearch9Options());
         elasticOptions.Value.Server ??= Environment.GetEnvironmentVariable("TestElasticsearchHost") ?? "localhost:9200";
 
         var settingsManager = GetSettingsManager();
