@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Analysis;
@@ -21,6 +22,7 @@ using VirtoCommerce.ElasticSearch9.Core.Models;
 using VirtoCommerce.ElasticSearch9.Core.Services;
 using VirtoCommerce.ElasticSearch9.Data.Extensions;
 using VirtoCommerce.Platform.Core.Common;
+using VirtoCommerce.Platform.Core.DistributedLock;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.SearchModule.Core.Exceptions;
 using VirtoCommerce.SearchModule.Core.Model;
@@ -37,10 +39,15 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     private readonly IElasticSearchDocumentConverter _documentConverter;
     private readonly ILogger<ElasticSearch9Provider> _logger;
     private readonly IElasticSearchPropertyService _propertyService;
+    private readonly IDistributedLockService _distributedLockService;
 
     private readonly ConcurrentDictionary<string, IDictionary<PropertyName, IProperty>> _mappings = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _createIndexSemaphores = new(StringComparer.OrdinalIgnoreCase);
 
     private const int SuffixLength = 10;
+    private static readonly TimeSpan CreateIndexLockTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan CreateIndexTryLockTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CreateIndexRetryInterval = TimeSpan.FromMilliseconds(200);
 
     protected ElasticsearchClient Client { get; }
     protected Uri ServerUrl { get; }
@@ -60,7 +67,8 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         IElasticSearchResponseBuilder searchResponseBuilder,
         IElasticSearchDocumentConverter documentConverter,
         ILogger<ElasticSearch9Provider> logger,
-        IElasticSearchPropertyService propertyService
+        IElasticSearchPropertyService propertyService,
+        IDistributedLockService distributedLockService
     )
     {
         _searchOptions = searchOptions.Value;
@@ -70,6 +78,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         _documentConverter = documentConverter;
         _logger = logger;
         _propertyService = propertyService;
+        _distributedLockService = distributedLockService;
 
         if (!string.IsNullOrEmpty(elasticOptions.Value.Server))
         {
@@ -567,34 +576,37 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
 
     protected virtual async Task<CreateIndexResult> InternalCreateIndexAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
     {
-        var indexName = GetIndexName(parameters.Reindex, documentType);
-
-        var mapping = await GetMappingAsync(indexName);
-        var providerFields = new Properties(mapping);
-        var oldFieldsCount = providerFields.Count();
-
-        var providerDocuments = documents.Select(document => _documentConverter.ToProviderDocument(documentType, document, providerFields)).ToList();
-
-        var updateMapping = providerFields.Count() != oldFieldsCount;
-
-        var indexExists = await IndexExistsAsync(indexName);
-
-        if (!indexExists)
+        return await ExecuteWithDocumentTypeLockAsync(documentType, async () =>
         {
-            var newIndexName = GetIndexName(documentType, GetRandomIndexSuffix());
-            await CreateIndexAsync(documentType, newIndexName, alias: indexName);
-        }
+            var indexName = GetIndexName(parameters.Reindex, documentType);
 
-        if (!indexExists || updateMapping)
-        {
-            await UpdateMappingAsync(documentType, indexName, providerFields);
-        }
+            var mapping = await GetMappingAsync(indexName);
+            var providerFields = new Properties(mapping);
+            var oldFieldsCount = providerFields.Count();
 
-        return new CreateIndexResult
-        {
-            IndexName = indexName,
-            ProviderDocuments = providerDocuments,
-        };
+            var providerDocuments = documents.Select(document => _documentConverter.ToProviderDocument(documentType, document, providerFields)).ToList();
+
+            var updateMapping = providerFields.Count() != oldFieldsCount;
+
+            var indexExists = await IndexExistsAsync(indexName);
+
+            if (!indexExists)
+            {
+                var newIndexName = GetIndexName(documentType, GetRandomIndexSuffix());
+                await CreateIndexAsync(documentType, newIndexName, alias: indexName);
+            }
+
+            if (!indexExists || updateMapping)
+            {
+                await UpdateMappingAsync(documentType, indexName, providerFields);
+            }
+
+            return new CreateIndexResult
+            {
+                IndexName = indexName,
+                ProviderDocuments = providerDocuments,
+            };
+        });
     }
 
     protected virtual async Task InternalDeleteAsync(string indexAlias)
@@ -921,6 +933,32 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     protected virtual string GetIndexAlias(string alias, string documentType)
     {
         return $"{GetIndexName(documentType)}-{alias}".ToLowerInvariant();
+    }
+
+    protected virtual async Task<T> ExecuteWithDocumentTypeLockAsync<T>(string documentType, Func<Task<T>> resolver)
+    {
+        var semaphore = _createIndexSemaphores.GetOrAdd(documentType, static _ => new SemaphoreSlim(1, 1));
+
+        await semaphore.WaitAsync();
+
+        try
+        {
+            return await _distributedLockService.ExecuteAsync(
+                GetCreateIndexLockResourceKey(documentType),
+                resolver,
+                lockTimeout: CreateIndexLockTimeout,
+                tryLockTimeout: CreateIndexTryLockTimeout,
+                retryInterval: CreateIndexRetryInterval);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
+    protected virtual string GetCreateIndexLockResourceKey(string documentType)
+    {
+        return $"{nameof(ElasticSearch9Provider)}:CreateIndex:{GetIndexName(documentType)}";
     }
 
     /// <summary>
