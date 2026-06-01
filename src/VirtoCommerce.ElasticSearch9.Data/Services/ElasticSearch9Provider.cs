@@ -348,7 +348,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     {
         CheckClientCreated();
 
-        return InternalCreateIndexAsync(documentType, [schema], new IndexingParameters { Reindex = true });
+        return InternalCreateIndexWithLockAsync(documentType, [schema], new IndexingParameters { Reindex = true });
     }
 
     public virtual async Task<SuggestionResponse> GetSuggestionsAsync(string documentType, SuggestionRequest request)
@@ -416,7 +416,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
 
     protected virtual async Task<IndexingResult> InternalIndexAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
     {
-        var createIndexResult = await InternalCreateIndexAsync(documentType, documents, parameters);
+        var createIndexResult = await InternalCreateIndexWithLockAsync(documentType, documents, parameters);
 
         var pipelines = new List<string>();
 
@@ -576,37 +576,39 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
 
     protected virtual async Task<CreateIndexResult> InternalCreateIndexAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
     {
-        return await ExecuteWithDocumentTypeLockAsync(documentType, async () =>
+        var indexName = GetIndexName(parameters.Reindex, documentType);
+
+        var mapping = await GetMappingAsync(indexName);
+        var providerFields = new Properties(mapping);
+        var oldFieldsCount = providerFields.Count();
+
+        var providerDocuments = documents.Select(document => _documentConverter.ToProviderDocument(documentType, document, providerFields)).ToList();
+
+        var updateMapping = providerFields.Count() != oldFieldsCount;
+
+        var indexExists = await IndexExistsAsync(indexName);
+
+        if (!indexExists)
         {
-            var indexName = GetIndexName(parameters.Reindex, documentType);
+            var newIndexName = GetIndexName(documentType, GetRandomIndexSuffix());
+            await CreateIndexAsync(documentType, newIndexName, alias: indexName);
+        }
 
-            var mapping = await GetMappingAsync(indexName);
-            var providerFields = new Properties(mapping);
-            var oldFieldsCount = providerFields.Count();
+        if (!indexExists || updateMapping)
+        {
+            await UpdateMappingAsync(documentType, indexName, providerFields);
+        }
 
-            var providerDocuments = documents.Select(document => _documentConverter.ToProviderDocument(documentType, document, providerFields)).ToList();
+        return new CreateIndexResult
+        {
+            IndexName = indexName,
+            ProviderDocuments = providerDocuments,
+        };
+    }
 
-            var updateMapping = providerFields.Count() != oldFieldsCount;
-
-            var indexExists = await IndexExistsAsync(indexName);
-
-            if (!indexExists)
-            {
-                var newIndexName = GetIndexName(documentType, GetRandomIndexSuffix());
-                await CreateIndexAsync(documentType, newIndexName, alias: indexName);
-            }
-
-            if (!indexExists || updateMapping)
-            {
-                await UpdateMappingAsync(documentType, indexName, providerFields);
-            }
-
-            return new CreateIndexResult
-            {
-                IndexName = indexName,
-                ProviderDocuments = providerDocuments,
-            };
-        });
+    protected virtual Task<CreateIndexResult> InternalCreateIndexWithLockAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
+    {
+        return ExecuteWithLockAsync(documentType, () => InternalCreateIndexAsync(documentType, documents, parameters));
     }
 
     protected virtual async Task InternalDeleteAsync(string indexAlias)
@@ -935,7 +937,7 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         return $"{GetIndexName(documentType)}-{alias}".ToLowerInvariant();
     }
 
-    protected virtual async Task<T> ExecuteWithDocumentTypeLockAsync<T>(string documentType, Func<Task<T>> resolver)
+    protected virtual async Task<T> ExecuteWithLockAsync<T>(string documentType, Func<Task<T>> resolver)
     {
         var semaphore = _createIndexSemaphores.GetOrAdd(documentType, static _ => new SemaphoreSlim(1, 1));
 
