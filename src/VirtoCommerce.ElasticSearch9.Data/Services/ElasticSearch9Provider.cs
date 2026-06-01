@@ -606,9 +606,26 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         };
     }
 
-    protected virtual Task<CreateIndexResult> InternalCreateIndexWithLockAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
+    protected virtual async Task<CreateIndexResult> InternalCreateIndexWithLockAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
     {
-        return ExecuteWithLockAsync(documentType, () => InternalCreateIndexAsync(documentType, documents, parameters));
+        var semaphore = _createIndexSemaphores.GetOrAdd(documentType, static _ => new SemaphoreSlim(1, 1));
+        var resourceKey = $"{nameof(ElasticSearch9Provider)}:{nameof(InternalCreateIndexWithLockAsync)}:{GetIndexName(documentType)}";
+
+        await semaphore.WaitAsync();
+
+        try
+        {
+            return await _distributedLockService.ExecuteAsync(
+                resourceKey,
+                () => InternalCreateIndexAsync(documentType, documents, parameters),
+                lockTimeout: CreateIndexLockTimeout,
+                tryLockTimeout: CreateIndexTryLockTimeout,
+                retryInterval: CreateIndexRetryInterval);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     protected virtual async Task InternalDeleteAsync(string indexAlias)
@@ -935,32 +952,6 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     protected virtual string GetIndexAlias(string alias, string documentType)
     {
         return $"{GetIndexName(documentType)}-{alias}".ToLowerInvariant();
-    }
-
-    protected virtual async Task<T> ExecuteWithLockAsync<T>(string documentType, Func<Task<T>> resolver)
-    {
-        var semaphore = _createIndexSemaphores.GetOrAdd(documentType, static _ => new SemaphoreSlim(1, 1));
-
-        await semaphore.WaitAsync();
-
-        try
-        {
-            return await _distributedLockService.ExecuteAsync(
-                GetCreateIndexLockResourceKey(documentType),
-                resolver,
-                lockTimeout: CreateIndexLockTimeout,
-                tryLockTimeout: CreateIndexTryLockTimeout,
-                retryInterval: CreateIndexRetryInterval);
-        }
-        finally
-        {
-            semaphore.Release();
-        }
-    }
-
-    protected virtual string GetCreateIndexLockResourceKey(string documentType)
-    {
-        return $"{nameof(ElasticSearch9Provider)}:CreateIndex:{GetIndexName(documentType)}";
     }
 
     /// <summary>
