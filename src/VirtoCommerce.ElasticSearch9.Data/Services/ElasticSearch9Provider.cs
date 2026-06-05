@@ -574,6 +574,28 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         }
     }
 
+    protected virtual async Task<CreateIndexResult> InternalCreateIndexWithLockAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
+    {
+        var semaphore = _createIndexSemaphores.GetOrAdd(documentType, static _ => new SemaphoreSlim(1, 1));
+        var resourceKey = $"{nameof(ElasticSearch9Provider)}:{nameof(InternalCreateIndexWithLockAsync)}:{GetIndexName(documentType)}";
+
+        await semaphore.WaitAsync();
+
+        try
+        {
+            return await _distributedLockService.ExecuteAsync(
+                resourceKey,
+                () => InternalCreateIndexAsync(documentType, documents, parameters),
+                lockTimeout: CreateIndexLockTimeout,
+                tryLockTimeout: CreateIndexTryLockTimeout,
+                retryInterval: CreateIndexRetryInterval);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
     protected virtual async Task<CreateIndexResult> InternalCreateIndexAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
     {
         var indexName = GetIndexName(parameters.Reindex, documentType);
@@ -604,28 +626,6 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             IndexName = indexName,
             ProviderDocuments = providerDocuments,
         };
-    }
-
-    protected virtual async Task<CreateIndexResult> InternalCreateIndexWithLockAsync(string documentType, IList<IndexDocument> documents, IndexingParameters parameters)
-    {
-        var semaphore = _createIndexSemaphores.GetOrAdd(documentType, static _ => new SemaphoreSlim(1, 1));
-        var resourceKey = $"{nameof(ElasticSearch9Provider)}:{nameof(InternalCreateIndexWithLockAsync)}:{GetIndexName(documentType)}";
-
-        await semaphore.WaitAsync();
-
-        try
-        {
-            return await _distributedLockService.ExecuteAsync(
-                resourceKey,
-                () => InternalCreateIndexAsync(documentType, documents, parameters),
-                lockTimeout: CreateIndexLockTimeout,
-                tryLockTimeout: CreateIndexTryLockTimeout,
-                retryInterval: CreateIndexRetryInterval);
-        }
-        finally
-        {
-            semaphore.Release();
-        }
     }
 
     protected virtual async Task InternalDeleteAsync(string indexAlias)
