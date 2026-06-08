@@ -23,7 +23,7 @@
   </owners>
 
   <projectUrl>https://github.com/VirtoCommerce/vc-module-elastic-search-9</projectUrl>
-  <iconUrl>Modules/$(VirtoCommerce.ElasticSearch9)/Content/logo.png</iconUrl>
+  <iconUrl>Modules/$(VirtoCommerce.ElasticSearch9)/Content/logo.svg</iconUrl>
   <requireLicenseAcceptance>false</requireLicenseAcceptance>
 
   <assemblyFile>VirtoCommerce.ElasticSearch9.Web.dll</assemblyFile>
