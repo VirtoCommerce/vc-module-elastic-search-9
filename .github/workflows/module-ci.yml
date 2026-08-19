@@ -378,6 +378,7 @@ jobs:
       vctestingRepoBranch: 'dev'
       frontendZipUrl: 'latest'
       testSuites: 'graphql,restapi,e2e'   
+      searchProvider: 'elasticsearch9'
     secrets:
       appInsightsInstrumentationKey: ${{ secrets.E2E_APPINSIGHTSINSTRUMENTATIONKEY }}
       envPAT: ${{ secrets.REPO_TOKEN }}
