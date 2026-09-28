@@ -1,3 +1,5 @@
+using System;
+
 namespace VirtoCommerce.ElasticSearch9.Core.Models;
 
 public class ElasticSearch9Options
@@ -18,4 +20,14 @@ public class ElasticSearch9Options
     /// and response JSON can be inspected. It also always asks the server for the full stack trace on errors.
     /// </summary>
     public bool EnableDebugMode { get; set; } = false;
+
+    /// <summary>
+    /// Timeout for every Elasticsearch request that does not set its own.
+    /// </summary>
+    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Timeout for bulk indexing and deletion, which may run ingest pipelines such as semantic-search inference.
+    /// </summary>
+    public TimeSpan LongRunningRequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
 }

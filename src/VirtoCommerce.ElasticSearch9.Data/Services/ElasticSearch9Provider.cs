@@ -52,6 +52,13 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     protected ElasticsearchClient Client { get; }
     protected Uri ServerUrl { get; }
 
+    /// <summary>
+    /// Timeout for calls that may legitimately outlast <see cref="ElasticSearch9Options.RequestTimeout"/>.
+    /// Apply it through the descriptor overload, <c>RequestConfiguration(x =&gt; x.RequestTimeout(...))</c>, which keeps
+    /// the request's own configuration; assigning a new configuration replaces it, content type included.
+    /// </summary>
+    protected TimeSpan LongRunningRequestTimeout { get; }
+
     [GeneratedRegex("[/+_=]", RegexOptions.Compiled)]
     private static partial Regex SpecialSymbols();
 
@@ -79,11 +86,12 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
         _logger = logger;
         _propertyService = propertyService;
         _distributedLockService = distributedLockService;
+        LongRunningRequestTimeout = elasticOptions.Value.LongRunningRequestTimeout;
 
         if (!string.IsNullOrEmpty(elasticOptions.Value.Server))
         {
             ServerUrl = new Uri(elasticOptions.Value.Server);
-            var settings = new ElasticsearchClientSettings(ServerUrl);
+            var settings = new ElasticsearchClientSettings(ServerUrl).RequestTimeout(elasticOptions.Value.RequestTimeout);
 
             if (elasticOptions.Value.EnableDebugMode)
             {
@@ -196,7 +204,11 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
 
             var providerDocuments = documents.Select(d => new SearchDocument { Id = d.Id }).ToArray();
 
-            var bulkResponse = await Client.BulkAsync(x => CreateBulkDeleteRequest(indexName, providerDocuments, x));
+            var bulkResponse = await Client.BulkAsync(x =>
+            {
+                CreateBulkDeleteRequest(indexName, providerDocuments, x);
+                x.RequestConfiguration(c => c.RequestTimeout(LongRunningRequestTimeout));
+            });
 
             if (!bulkResponse.IsValidResponse)
             {
@@ -438,7 +450,11 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             pipelines.Add(pipelineName);
         }
 
-        var bulkResponse = await Client.BulkAsync(x => CreateBulkIndexRequest(createIndexResult.IndexName, createIndexResult.ProviderDocuments, x, pipelines));
+        var bulkResponse = await Client.BulkAsync(x =>
+        {
+            CreateBulkIndexRequest(createIndexResult.IndexName, createIndexResult.ProviderDocuments, x, pipelines);
+            x.RequestConfiguration(c => c.RequestTimeout(LongRunningRequestTimeout));
+        });
 
         await Client.Indices.RefreshAsync(createIndexResult.IndexName);
 
