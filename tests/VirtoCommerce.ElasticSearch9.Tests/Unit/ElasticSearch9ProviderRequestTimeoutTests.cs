@@ -6,7 +6,6 @@ using Moq;
 using VirtoCommerce.ElasticSearch9.Core.Models;
 using VirtoCommerce.ElasticSearch9.Core.Services;
 using VirtoCommerce.ElasticSearch9.Data.Services;
-using VirtoCommerce.Platform.Core.DistributedLock;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.SearchModule.Core.Model;
 using Xunit;
@@ -46,7 +45,7 @@ public class ElasticSearch9ProviderRequestTimeoutTests
         Mock.Of<IElasticSearchDocumentConverter>(),
         Mock.Of<ILogger<ElasticSearch9Provider>>(),
         Mock.Of<IElasticSearchPropertyService>(),
-        Mock.Of<IDistributedLockService>())
+        new PassThroughDistributedLock())
     {
         public TimeSpan? ClientRequestTimeout => Client.ElasticsearchClientSettings.RequestTimeout;
     }

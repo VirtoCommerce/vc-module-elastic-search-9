@@ -46,7 +46,22 @@ public class ElasticSearch9ProviderCreateIndexLockTests
         indexStoreWithLock.CreatedIndexCount.Should().Be(1, "the lock should serialize index creation and prevent duplicate indexes");
     }
 
-    private sealed class TestElasticSearch9Provider(IndexStore indexStore) : ElasticSearch9Provider(
+    [Fact]
+    public async Task InternalCreateIndexWithLockAsync_LocksTheIndexForTenSeconds()
+    {
+        // Arrange
+        var distributedLock = new PassThroughDistributedLock();
+        var provider = new TestElasticSearch9Provider(new IndexStore(), distributedLock);
+
+        // Act
+        await provider.CallInternalCreateIndexWithLockAsync();
+
+        // Assert
+        distributedLock.Requests.Should().ContainSingle().Which.Should().Be(
+            ("ElasticSearch9Provider:InternalCreateIndexWithLockAsync:test-core-product", TimeSpan.FromSeconds(10)));
+    }
+
+    private sealed class TestElasticSearch9Provider(IndexStore indexStore, IDistributedLock distributedLock = null) : ElasticSearch9Provider(
         Options.Create(new SearchOptions { Scope = "test-core", Provider = "ElasticSearch9" }),
         Options.Create(new ElasticSearch9Options()),
         Mock.Of<ISettingsManager>(),
@@ -55,7 +70,7 @@ public class ElasticSearch9ProviderCreateIndexLockTests
         Mock.Of<IElasticSearchDocumentConverter>(),
         Mock.Of<ILogger<ElasticSearch9Provider>>(),
         Mock.Of<IElasticSearchPropertyService>(),
-        new PassThroughDistributedLockService())
+        distributedLock ?? new PassThroughDistributedLock())
     {
         private const string DocumentType = "Product";
 
@@ -94,12 +109,5 @@ public class ElasticSearch9ProviderCreateIndexLockTests
         }
 
         public void CreateIndex() => Interlocked.Increment(ref _createdIndexCount);
-    }
-
-    private sealed class PassThroughDistributedLockService : IDistributedLockService
-    {
-        public T Execute<T>(string resourceKey, Func<T> resolver, TimeSpan? lockTimeout = null, TimeSpan? tryLockTimeout = null, TimeSpan? retryInterval = null, CancellationToken? cancellationToken = null) => resolver();
-
-        public Task<T> ExecuteAsync<T>(string resourceKey, Func<Task<T>> resolver, TimeSpan? lockTimeout = null, TimeSpan? tryLockTimeout = null, TimeSpan? retryInterval = null, CancellationToken? cancellationToken = null) => resolver();
     }
 }
