@@ -893,6 +893,12 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
     {
         var mappingResponse = await Client.Indices.GetMappingAsync(indexName);
 
+        if (!mappingResponse.IsValidResponse)
+        {
+            ThrowException($"Mapping load failed for index: {indexName}. {mappingResponse.DebugInformation}",
+                mappingResponse.ApiCallDetails?.OriginalException);
+        }
+
         var mapping = mappingResponse.GetMappingFor(indexName)
             ?? mappingResponse.Mappings.Values.FirstOrDefault()?.Mappings;
 
