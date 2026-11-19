@@ -87,7 +87,7 @@ public class ElasticSearch9ProviderMappingCacheTests
 
         public int LoadCount { get; private set; }
 
-        public static IDictionary<PropertyName, IProperty> ModifiedDateMapping() => new Dictionary<PropertyName, IProperty>
+        public static Dictionary<PropertyName, IProperty> ModifiedDateMapping() => new Dictionary<PropertyName, IProperty>
         {
             ["modifieddate"] = new DateProperty(),
         };
