@@ -878,7 +878,14 @@ public partial class ElasticSearch9Provider : ISearchProvider, ISupportIndexSwap
             properties = await LoadMappingAsync(indexName);
         }
 
-        properties ??= new Properties<IDictionary<PropertyName, IProperty>>();
+        // An empty mapping is not cached: the index may not exist yet, or not have its mapping yet, while another
+        // instance creates it, and a cached empty mapping would make this instance treat every date range as numeric
+        // and lose its bounds, until this instance writes.
+        if (properties is null || properties.Count == 0)
+        {
+            return new Properties<IDictionary<PropertyName, IProperty>>();
+        }
+
         AddMappingToCache(indexName, properties);
 
         return properties;
